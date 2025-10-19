@@ -4,6 +4,7 @@ from .models import Customer, Product, Order
 # ------------------------ Customer Filter ------------------------
 class CustomerFilter(django_filters.FilterSet):
     nameIcontains = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
+    emailIcontains = django_filters.CharFilter(field_name="email", lookup_expr="icontains")
     createdAtGte = django_filters.DateFilter(field_name="created_at", lookup_expr="gte")
     createdAtLte = django_filters.DateFilter(field_name="created_at", lookup_expr="lte")
 
