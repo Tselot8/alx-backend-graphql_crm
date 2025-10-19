@@ -4,6 +4,9 @@ from django.db import transaction
 from django.core.validators import RegexValidator
 from django.utils import timezone
 from .models import Customer, Product, Order
+from graphene import relay
+from graphene_django.filter import DjangoFilterConnectionField
+from crm.filters import CustomerFilter, ProductFilter, OrderFilter
 
 # ------------------------
 # GraphQL Object Types
@@ -12,7 +15,7 @@ from .models import Customer, Product, Order
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
-        fields = ("id", "name", "email", "phone")
+        fields = ("id", "name", "email", "phone", "created_at")
 
 
 class ProductType(DjangoObjectType):
@@ -169,3 +172,33 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+
+
+# ------------------ NODES ------------------
+class CustomerNode(DjangoObjectType):
+    createdAt = graphene.DateTime(source="created_at")
+    class Meta:
+        model = Customer
+        interfaces = (relay.Node,)
+        filterset_class = CustomerFilter
+        fields = ("id", "name", "email", "phone", "created_at")
+
+class ProductNode(DjangoObjectType):
+    class Meta:
+        model = Product
+        interfaces = (relay.Node,)
+        filterset_class = ProductFilter
+        fields = "__all__"
+
+class OrderNode(DjangoObjectType):
+    class Meta:
+        model = Order
+        interfaces = (relay.Node,)
+        filterset_class = OrderFilter
+        fields = "__all__"
+
+# ------------------ QUERY ------------------
+class Query(graphene.ObjectType):
+    all_customers = DjangoFilterConnectionField(CustomerNode)
+    all_products = DjangoFilterConnectionField(ProductNode)
+    all_orders = DjangoFilterConnectionField(OrderNode)

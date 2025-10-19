@@ -14,6 +14,7 @@ class Customer(models.Model):
             message="Phone number must be in +1234567890 or 123-456-7890 format"
         )]
     )
+    created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.name} ({self.email})"
