@@ -1,31 +1,17 @@
 from django.db import models
-from django.core.validators import RegexValidator, MinValueValidator
-from django.utils import timezone
-
 
 class Customer(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
-    phone = models.CharField(
-        max_length=20,
-        blank=True,
-        validators=[RegexValidator(
-            regex=r'^(\+?\d{1,3}[- ]?)?\d{3,15}$',
-            message="Phone number must be in +1234567890 or 123-456-7890 format"
-        )]
-    )
-    created_at = models.DateTimeField(default=timezone.now)
+    phone = models.CharField(max_length=20, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.name} ({self.email})"
+        return self.name
 
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
-    price = models.DecimalField(
-        max_digits=10, decimal_places=2,
-        validators=[MinValueValidator(0.01)]
-    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.PositiveIntegerField(default=0)
 
     def __str__(self):
@@ -35,14 +21,13 @@ class Product(models.Model):
 class Order(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="orders")
     products = models.ManyToManyField(Product)
-    order_date = models.DateTimeField(default=timezone.now)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    order_date = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        # Auto-recalculate total before saving
-        total = sum(p.price for p in self.products.all()) if self.pk else 0
+    def calculate_total(self):
+        total = sum(p.price for p in self.products.all())
         self.total_amount = total
-        super().save(*args, **kwargs)
-        
+        self.save()
+
     def __str__(self):
-        return f"Order #{self.id} - {self.customer.name}"
+        return f"Order {self.id} by {self.customer.name}"

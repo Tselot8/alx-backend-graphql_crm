@@ -1,44 +1,52 @@
 import django_filters
 from .models import Customer, Product, Order
+from django.db.models import Q
 
-# ------------------------ Customer Filter ------------------------
+# ---------------- Customer Filter ----------------
 class CustomerFilter(django_filters.FilterSet):
-    nameIcontains = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
-    emailIcontains = django_filters.CharFilter(field_name="email", lookup_expr="icontains")
-    createdAtGte = django_filters.DateFilter(field_name="created_at", lookup_expr="gte")
-    createdAtLte = django_filters.DateFilter(field_name="created_at", lookup_expr="lte")
+    name_icontains = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
+    email_icontains = django_filters.CharFilter(field_name="email", lookup_expr="icontains")
+    created_at_gte = django_filters.DateFilter(field_name="created_at", lookup_expr="gte")
+    created_at_lte = django_filters.DateFilter(field_name="created_at", lookup_expr="lte")
+    phone_pattern = django_filters.CharFilter(method="filter_phone_pattern")
 
     class Meta:
         model = Customer
-        fields = ["nameIcontains", "createdAtGte", "createdAtLte"]
+        fields = ["name", "email", "created_at", "phone"]
+
+    def filter_phone_pattern(self, queryset, name, value):
+        return queryset.filter(phone__startswith=value)
 
 
-# ------------------------ Product Filter ------------------------
+# ---------------- Product Filter ----------------
 class ProductFilter(django_filters.FilterSet):
-    nameIcontains = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
-    priceGte = django_filters.NumberFilter(field_name="price", lookup_expr="gte")
-    priceLte = django_filters.NumberFilter(field_name="price", lookup_expr="lte")
-    stockGte = django_filters.NumberFilter(field_name="stock", lookup_expr="gte")
-    stockLte = django_filters.NumberFilter(field_name="stock", lookup_expr="lte")
+    name_icontains = django_filters.CharFilter(field_name="name", lookup_expr="icontains")
+    price_gte = django_filters.NumberFilter(field_name="price", lookup_expr="gte")
+    price_lte = django_filters.NumberFilter(field_name="price", lookup_expr="lte")
+    stock_gte = django_filters.NumberFilter(field_name="stock", lookup_expr="gte")
+    stock_lte = django_filters.NumberFilter(field_name="stock", lookup_expr="lte")
 
     class Meta:
         model = Product
-        fields = ["nameIcontains", "priceGte", "priceLte", "stockGte", "stockLte"]
+        fields = ["name", "price", "stock"]
 
 
-# ------------------------ Order Filter ------------------------
+# ---------------- Order Filter ----------------
 class OrderFilter(django_filters.FilterSet):
-    totalAmountGte = django_filters.NumberFilter(field_name="total_amount", lookup_expr="gte")
-    totalAmountLte = django_filters.NumberFilter(field_name="total_amount", lookup_expr="lte")
-    orderDateGte = django_filters.DateFilter(field_name="order_date", lookup_expr="gte")
-    orderDateLte = django_filters.DateFilter(field_name="order_date", lookup_expr="lte")
-    customerName = django_filters.CharFilter(field_name="customer__name", lookup_expr="icontains")
-    productName = django_filters.CharFilter(field_name="products__name", lookup_expr="icontains")
+    total_amount_gte = django_filters.NumberFilter(field_name="total_amount", lookup_expr="gte")
+    total_amount_lte = django_filters.NumberFilter(field_name="total_amount", lookup_expr="lte")
+    order_date_gte = django_filters.DateFilter(field_name="order_date", lookup_expr="gte")
+    order_date_lte = django_filters.DateFilter(field_name="order_date", lookup_expr="lte")
+    customer_name = django_filters.CharFilter(field_name="customer__name", lookup_expr="icontains")
+    product_name = django_filters.CharFilter(method="filter_product_name")
+    product_id = django_filters.NumberFilter(method="filter_product_id")
 
     class Meta:
         model = Order
-        fields = [
-            "totalAmountGte", "totalAmountLte",
-            "orderDateGte", "orderDateLte",
-            "customerName", "productName"
-        ]
+        fields = ["total_amount", "order_date", "customer", "products"]
+
+    def filter_product_name(self, queryset, name, value):
+        return queryset.filter(products__name__icontains=value).distinct()
+
+    def filter_product_id(self, queryset, name, value):
+        return queryset.filter(products__id=value).distinct()

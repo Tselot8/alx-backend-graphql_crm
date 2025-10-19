@@ -1,32 +1,22 @@
-import os
 import django
-from decimal import Decimal
-from django.utils import timezone
+import os
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "alx_backend_graphql.settings")
 django.setup()
 
-from crm.models import Customer, Product, Order
-
+from crm.models import Customer, Product
 
 def seed():
     Customer.objects.all().delete()
     Product.objects.all().delete()
-    Order.objects.all().delete()
 
-    c1 = Customer.objects.create(name="Alice", email="alice@example.com", phone="+1234567890")
-    c2 = Customer.objects.create(name="Bob", email="bob@example.com", phone="123-456-7890")
+    Customer.objects.create(name="Alice", email="alice@example.com", phone="+123456789")
+    Customer.objects.create(name="Bob", email="bob@example.com")
 
-    p1 = Product.objects.create(name="Laptop", price=Decimal("999.99"), stock=10)
-    p2 = Product.objects.create(name="Mouse", price=Decimal("25.50"), stock=50)
+    Product.objects.create(name="Laptop", price=999.99, stock=10)
+    Product.objects.create(name="Phone", price=499.99, stock=20)
 
-    o1 = Order.objects.create(customer=c1, order_date=timezone.now())
-    o1.products.add(p1, p2)
-    o1.total_amount = sum(p.price for p in o1.products.all())
-    o1.save()
-
-    print("✅ Database seeded successfully!")
-
+    print("Database seeded successfully!")
 
 if __name__ == "__main__":
     seed()

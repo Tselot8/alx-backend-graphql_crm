@@ -1,21 +1,37 @@
+import re
 import graphene
 from graphene_django import DjangoObjectType
 from django.db import transaction
-from django.core.validators import RegexValidator
-from django.utils import timezone
 from .models import Customer, Product, Order
-from graphene import relay
+from datetime import datetime
+from graphene_django.types import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
-from crm.filters import CustomerFilter, ProductFilter, OrderFilter
+from .filters import CustomerFilter, ProductFilter, OrderFilter
 
-# ------------------------
-# GraphQL Object Types
-# ------------------------
+# ---------------- Input Types ----------------
+class CustomerInput(graphene.InputObjectType):
+    name = graphene.String(required=True)
+    email = graphene.String(required=True)
+    phone = graphene.String()
 
+
+class ProductInput(graphene.InputObjectType):
+    name = graphene.String(required=True)
+    price = graphene.Float(required=True)
+    stock = graphene.Int(default_value=0)
+
+
+class OrderInput(graphene.InputObjectType):
+    customer_id = graphene.ID(required=True)
+    product_ids = graphene.List(graphene.ID, required=True)
+    order_date = graphene.DateTime()
+
+
+# ---------------- Object Types ----------------
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
-        fields = ("id", "name", "email", "phone", "created_at")
+        fields = ("id", "name", "email", "phone")
 
 
 class ProductType(DjangoObjectType):
@@ -30,37 +46,28 @@ class OrderType(DjangoObjectType):
         fields = ("id", "customer", "products", "total_amount", "order_date")
 
 
-# ------------------------
-# Mutations
-# ------------------------
-
+# ---------------- Mutations ----------------
 class CreateCustomer(graphene.Mutation):
     class Arguments:
-        name = graphene.String(required=True)
-        email = graphene.String(required=True)
-        phone = graphene.String(required=False)
+        input = CustomerInput(required=True)
 
     customer = graphene.Field(CustomerType)
     message = graphene.String()
 
-    def mutate(self, info, name, email, phone=None):
-        if Customer.objects.filter(email=email).exists():
+    def mutate(self, info, input):
+        if Customer.objects.filter(email=input.email).exists():
             raise Exception("Email already exists")
 
-        if phone:
-            phone_validator = RegexValidator(
-                regex=r'^(\+?\d{10,15}|\d{3}-\d{3}-\d{4})$',
-                message="Invalid phone format. Use +1234567890 or 123-456-7890."
-            )
-            phone_validator(phone)
+        if input.phone and not re.match(r"^\+?\d{7,15}$", input.phone) and not re.match(r"^\d{3}-\d{3}-\d{4}$", input.phone):
+            raise Exception("Invalid phone format")
 
-        customer = Customer.objects.create(name=name, email=email, phone=phone)
+        customer = Customer.objects.create(name=input.name, email=input.email, phone=input.phone)
         return CreateCustomer(customer=customer, message="Customer created successfully!")
 
 
 class BulkCreateCustomers(graphene.Mutation):
     class Arguments:
-        input = graphene.List(graphene.JSONString, required=True)
+        input = graphene.List(CustomerInput, required=True)
 
     customers = graphene.List(CustomerType)
     errors = graphene.List(graphene.String)
@@ -68,103 +75,81 @@ class BulkCreateCustomers(graphene.Mutation):
     @transaction.atomic
     def mutate(self, info, input):
         created_customers = []
-        errors = []
+        error_list = []
 
-        for data in input:
+        for cust in input:
             try:
-                name = data.get("name")
-                email = data.get("email")
-                phone = data.get("phone")
+                if Customer.objects.filter(email=cust.email).exists():
+                    raise Exception(f"Email {cust.email} already exists")
+                if cust.phone and not re.match(r"^\+?\d{7,15}$", cust.phone) and not re.match(r"^\d{3}-\d{3}-\d{4}$", cust.phone):
+                    raise Exception(f"Invalid phone format for {cust.name}")
 
-                if not name or not email:
-                    raise Exception("Name and email are required.")
-
-                if Customer.objects.filter(email=email).exists():
-                    raise Exception(f"Email '{email}' already exists.")
-
-                if phone:
-                    phone_validator = RegexValidator(
-                        regex=r'^(\+?\d{10,15}|\d{3}-\d{3}-\d{4})$',
-                        message="Invalid phone format. Use +1234567890 or 123-456-7890."
-                    )
-                    phone_validator(phone)
-
-                customer = Customer.objects.create(name=name, email=email, phone=phone)
+                customer = Customer.objects.create(name=cust.name, email=cust.email, phone=cust.phone)
                 created_customers.append(customer)
-
             except Exception as e:
-                errors.append(str(e))
+                error_list.append(str(e))
 
-        return BulkCreateCustomers(customers=created_customers, errors=errors)
+        return BulkCreateCustomers(customers=created_customers, errors=error_list)
 
 
 class CreateProduct(graphene.Mutation):
     class Arguments:
-        name = graphene.String(required=True)
-        price = graphene.String(required=True)  # accept as string
-        stock = graphene.Int(required=False, default_value=0)
+        input = ProductInput(required=True)
 
     product = graphene.Field(ProductType)
 
-    def mutate(self, info, name, price, stock=0):
-        from decimal import Decimal
+    def mutate(self, info, input):
+        if input.price <= 0:
+            raise Exception("Price must be positive")
+        if input.stock < 0:
+            raise Exception("Stock cannot be negative")
 
-        try:
-            price = Decimal(price)
-        except:
-            raise Exception("Price must be a valid decimal number.")
-
-        if price <= 0:
-            raise Exception("Price must be positive.")
-        if stock < 0:
-            raise Exception("Stock cannot be negative.")
-
-        product = Product.objects.create(name=name, price=price, stock=stock)
+        product = Product.objects.create(name=input.name, price=input.price, stock=input.stock)
         return CreateProduct(product=product)
 
 
-from decimal import Decimal
-
 class CreateOrder(graphene.Mutation):
     class Arguments:
-        customer_id = graphene.ID(required=True)
-        product_ids = graphene.List(graphene.ID, required=True)
+        input = OrderInput(required=True)
 
     order = graphene.Field(OrderType)
 
-    def mutate(self, info, customer_id, product_ids):
-        customer = Customer.objects.get(pk=customer_id)
-        products = Product.objects.filter(pk__in=product_ids)
+    def mutate(self, info, input):
+        try:
+            customer = Customer.objects.get(pk=input.customer_id)
+        except Customer.DoesNotExist:
+            raise Exception("Invalid customer ID")
 
-        order = Order.objects.create(customer=customer)
+        if not input.product_ids:
+            raise Exception("At least one product must be selected")
+
+        products = Product.objects.filter(id__in=input.product_ids)
+        if products.count() != len(input.product_ids):
+            raise Exception("One or more product IDs are invalid")
+
+        order = Order.objects.create(customer=customer, order_date=input.order_date or datetime.now())
         order.products.set(products)
-
-        # ✅ Ensure total uses Decimal math
-        total = sum([Decimal(p.price) for p in products])
-        order.total_amount = total
+        order.total_amount = sum([p.price for p in products])
         order.save()
 
         return CreateOrder(order=order)
 
 
-
-# ------------------------
-# Schema Definition
-# ------------------------
-
+# ---------------- Query & Mutation ----------------
 class Query(graphene.ObjectType):
-    customers = graphene.List(CustomerType)
-    products = graphene.List(ProductType)
-    orders = graphene.List(OrderType)
+    hello = graphene.String(default_value="Hello, GraphQL!")
+    all_customers = graphene.List(CustomerType)
+    all_products = graphene.List(ProductType)
+    all_orders = graphene.List(OrderType)
 
-    def resolve_customers(self, info):
+    def resolve_all_customers(self, info):
         return Customer.objects.all()
 
-    def resolve_products(self, info):
+    def resolve_all_products(self, info):
         return Product.objects.all()
 
-    def resolve_orders(self, info):
-        return Order.objects.select_related("customer").prefetch_related("products")
+    def resolve_all_orders(self, info):
+        return Order.objects.all()
 
 
 class Mutation(graphene.ObjectType):
@@ -174,31 +159,15 @@ class Mutation(graphene.ObjectType):
     create_order = CreateOrder.Field()
 
 
-# ------------------ NODES ------------------
-class CustomerNode(DjangoObjectType):
-    createdAt = graphene.DateTime(source="created_at")
-    class Meta:
-        model = Customer
-        interfaces = (relay.Node,)
-        filterset_class = CustomerFilter
-        fields = ("id", "name", "email", "phone", "created_at")
-
-class ProductNode(DjangoObjectType):
-    class Meta:
-        model = Product
-        interfaces = (relay.Node,)
-        filterset_class = ProductFilter
-        fields = "__all__"
-
-class OrderNode(DjangoObjectType):
-    class Meta:
-        model = Order
-        interfaces = (relay.Node,)
-        filterset_class = OrderFilter
-        fields = "__all__"
-
-# ------------------ QUERY ------------------
 class Query(graphene.ObjectType):
-    all_customers = DjangoFilterConnectionField(CustomerNode)
-    all_products = DjangoFilterConnectionField(ProductNode)
-    all_orders = DjangoFilterConnectionField(OrderNode)
+    hello = graphene.String(default_value="Hello, GraphQL!")
+
+    # Filtered queries
+    all_customers = DjangoFilterConnectionField(CustomerType, filterset_class=CustomerFilter)
+    all_products = DjangoFilterConnectionField(ProductType, filterset_class=ProductFilter)
+    all_orders = DjangoFilterConnectionField(OrderType, filterset_class=OrderFilter)
+
+    def resolve_hello(self, info):
+        return "Hello, GraphQL!"
+ 
+    
