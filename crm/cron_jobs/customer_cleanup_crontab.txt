@@ -1,0 +1,1 @@
+0 2 * * 0 /home/tselot88/projects/crm/cron_jobs/clean_inactive_customers.sh
