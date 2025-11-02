@@ -9,27 +9,38 @@ This guide explains how to configure Celery and Celery Beat to generate weekly C
 sudo apt install redis-server
 pip install -r requirements.txt
 ```
+2. **Add Celery and Celery Beat to Django**
+Add django_celery_beat to INSTALLED_APPS in crm/settings.py.
 
-2. **Run Django migrations**
+3. **Run Django migrations**
 ```bash
 python manage.py migrate
 ```
 
-3. **Start Celery Worker**
+4. **Start Celery Worker**
 ```bash
 celery -A crm worker -l info
 ```
 
-4. **Start Celery Beat**
+5. **Start Celery Beat**
 ```bash
 celery -A crm beat -l info
 ```
 
-5. **Verify logs**
+6. **Verify logs**
 Check /tmp/crm_report_log.txt for weekly report entries. Each entry has the format:
 ```ruby
 YYYY-MM-DD HH:MM:SS - Report: X customers, Y orders, Z revenue
 ```
+7. **Manual Test (optional)
+You can manually trigger the task to check it:
+```python
+from crm.tasks import generate_crm_report
+generate_crm_report.delay()
+```
+8.
+9.
+10. 
 
 ## Notes
 
