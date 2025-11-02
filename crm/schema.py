@@ -1,8 +1,9 @@
 import re
+from graphene import relay
 import graphene
 from graphene_django import DjangoObjectType
 from django.db import transaction
-from .models import Customer, Product, Order
+from crm.models import Customer, Product, Order
 from datetime import datetime
 from graphene_django.types import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
@@ -31,18 +32,21 @@ class OrderInput(graphene.InputObjectType):
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
+        interfaces = (relay.Node,)
         fields = ("id", "name", "email", "phone")
 
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
+        interfaces = (relay.Node,)
         fields = ("id", "name", "price", "stock")
 
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
+        interfaces = (relay.Node,)
         fields = ("id", "customer", "products", "total_amount", "order_date")
 
 
