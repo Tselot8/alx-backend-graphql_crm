@@ -49,6 +49,29 @@ class OrderType(DjangoObjectType):
         interfaces = (relay.Node,)
         fields = ("id", "customer", "products", "total_amount", "order_date")
 
+class UpdateStock(graphene.Mutation):
+    class Arguments:
+        # No arguments needed
+        pass
+
+    updated_products = graphene.List(ProductType)
+    message = graphene.String()
+
+    def mutate(self, info):
+        # Query products with stock < 10
+        low_stock_products = Product.objects.filter(stock__lt=10)
+
+        # Increment stock
+        for product in low_stock_products:
+            product.stock += 10
+            product.save()
+
+        return UpdateStock(
+            updated_products=list(low_stock_products),
+            message=f"Updated {len(low_stock_products)} products."
+        )
+
+
 
 # ---------------- Mutations ----------------
 class CreateCustomer(graphene.Mutation):
@@ -161,6 +184,7 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
+    update_stock = UpdateStock.Field()
 
 
 class Query(graphene.ObjectType):
