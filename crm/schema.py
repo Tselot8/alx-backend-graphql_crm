@@ -49,25 +49,24 @@ class OrderType(DjangoObjectType):
         interfaces = (relay.Node,)
         fields = ("id", "customer", "products", "total_amount", "order_date")
 
-class UpdateStock(graphene.Mutation):
-    class Arguments:
-        # No arguments needed
-        pass
-
-    updated_products = graphene.List(ProductType)
+class UpdateLowStockProducts(graphene.Mutation):
+    updatedProducts = graphene.List(ProductType)
     message = graphene.String()
 
-    def mutate(self, info):
-        # Query products with stock < 10
-        low_stock_products = Product.objects.filter(stock__lt=10)
+    class Arguments:
+        pass  # no arguments
 
-        # Increment stock
+    def mutate(self, info):
+        # get low stock products via resolver
+        low_stock_products = get_low_stock_products()
+
+        # increment stock
         for product in low_stock_products:
             product.stock += 10
             product.save()
 
-        return UpdateStock(
-            updated_products=list(low_stock_products),
+        return UpdateLowStockProducts(
+            updatedProducts=list(low_stock_products),
             message=f"Updated {len(low_stock_products)} products."
         )
 

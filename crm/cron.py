@@ -36,7 +36,7 @@ def log_crm_heartbeat():
         with open(log_file, "a") as f:
             f.write(f"{timestamp} GraphQL endpoint error: {str(e)}\n")
 
-def update_low_stock():
+def updatelowstock():
     transport = RequestsHTTPTransport(
         url="http://localhost:8000/graphql",
         verify=False
@@ -46,7 +46,7 @@ def update_low_stock():
     mutation = gql(
         """
         mutation {
-            updateStock {
+            updateLowStockProducts {
                 updatedProducts {
                     name
                     stock
@@ -58,7 +58,7 @@ def update_low_stock():
     )
 
     result = client.execute(mutation)
-    updated = result.get("updateStock", {}).get("updatedProducts", [])
+    updated = result.get("updateLowStockProducts", {}).get("updatedProducts", [])
 
     log_file = "/tmp/lowstockupdates_log.txt"
     with open(log_file, "a") as f:
