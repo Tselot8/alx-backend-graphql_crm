@@ -44,7 +44,7 @@ def generate_crm_report():
     total_revenue = sum(float(edge["node"]["totalAmount"]) for edge in result["allOrders"]["edges"])
 
     # Step 5: Log to file
-    log_file = "/tmp/crm_report_log.txt"
+    log_file = "/tmp/crmreportlog.txt"
     with open(log_file, "a") as f:
         f.write(
             f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S} - "
