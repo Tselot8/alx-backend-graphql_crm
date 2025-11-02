@@ -60,7 +60,7 @@ def updatelowstock():
     result = client.execute(mutation)
     updated = result.get("updateLowStockProducts", {}).get("updatedProducts", [])
 
-    log_file = "/tmp/lowstockupdates_log.txt"
+    log_file = "/tmp/low_stock_updates_log.txt"
     with open(log_file, "a") as f:
         for p in updated:
             f.write(f"{datetime.datetime.now()} - Product: {p['name']}, New stock: {p['stock']}\n")
