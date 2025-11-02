@@ -1,5 +1,5 @@
 import re
-from graphene import relay
+from graphene import relay, Int
 import graphene
 from graphene_django import DjangoObjectType
 from django.db import transaction
@@ -36,6 +36,14 @@ class CustomerType(DjangoObjectType):
         interfaces = (relay.Node,)
         fields = ("id", "name", "email", "phone")
 
+class CustomerTypeConnection(relay.Connection):
+    class Meta:
+        node = CustomerType
+
+    total_count = Int()
+
+    def resolve_total_count(root, info):
+        return root.length
 
 class ProductType(DjangoObjectType):
     class Meta:
@@ -184,7 +192,7 @@ class Mutation(graphene.ObjectType):
     bulk_create_customers = BulkCreateCustomers.Field()
     create_product = CreateProduct.Field()
     create_order = CreateOrder.Field()
-    update_stock = UpdateStock.Field()
+    update_low_stock_products = UpdateLowStockProducts.Field()
 
 
 class Query(graphene.ObjectType):
